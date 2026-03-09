@@ -32,25 +32,25 @@ _items = [
             }
             assertResources = [
                 {
-                    apiVersion = "helm.aws.hops.ops.com.ai/v1alpha1"
-                    kind = "ExternalDNS"
+                    apiVersion = "helm.m.crossplane.io/v1beta1"
+                    kind = "Release"
                     metadata.name = "dns-edns"
                     spec = {
-                        clusterName = "my-cluster"
-                        aws.region = "us-east-1"
+                        forProvider.namespace = "external-dns"
+                        providerConfigRef.name = "my-cluster"
                     }
                 }
                 {
-                    apiVersion = "helm.aws.hops.ops.com.ai/v1alpha1"
-                    kind = "CertManager"
+                    apiVersion = "helm.m.crossplane.io/v1beta1"
+                    kind = "Release"
                     metadata.name = "dns-cm"
                     spec = {
-                        clusterName = "my-cluster"
-                        aws.region = "us-east-1"
+                        forProvider.namespace = "cert-manager"
+                        providerConfigRef.name = "my-cluster"
                     }
                 }
                 {
-                    apiVersion = "kubernetes.m.crossplane.io/v1alpha2"
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
                     kind = "Object"
                     metadata.name = "dns-cluster-issuer"
                     spec = {
@@ -106,7 +106,7 @@ _items = [
             }
             assertResources = [
                 {
-                    apiVersion = "kubernetes.m.crossplane.io/v1alpha2"
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
                     kind = "Object"
                     metadata.name = "dns-cluster-issuer"
                     spec.forProvider.manifest = {
@@ -160,22 +160,16 @@ _items = [
             }
             assertResources = [
                 {
-                    apiVersion = "helm.aws.hops.ops.com.ai/v1alpha1"
-                    kind = "ExternalDNS"
+                    apiVersion = "helm.m.crossplane.io/v1beta1"
+                    kind = "Release"
                     metadata.name = "dns-edns"
-                    spec = {
-                        helmProviderConfigRef = {
-                            name = "custom-helm"
-                            kind = "ClusterProviderConfig"
-                        }
-                        awsProviderConfigRef = {
-                            name = "custom-aws"
-                            kind = "ProviderConfig"
-                        }
+                    spec.providerConfigRef = {
+                        name = "custom-helm"
+                        kind = "ClusterProviderConfig"
                     }
                 }
                 {
-                    apiVersion = "kubernetes.m.crossplane.io/v1alpha2"
+                    apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
                     kind = "Object"
                     metadata.name = "dns-cluster-issuer"
                     spec.providerConfigRef = {
@@ -226,7 +220,7 @@ _items = [
     }
 
     # ==========================================================================
-    # Test 5: AWS config passes through to sub-XRDs
+    # Test 5: AWS config passes through to sub-resources
     # ==========================================================================
     metav1alpha1.CompositionTest {
         metadata.name = "aws-config-passthrough"
@@ -253,20 +247,20 @@ _items = [
             }
             assertResources = [
                 {
-                    apiVersion = "helm.aws.hops.ops.com.ai/v1alpha1"
-                    kind = "ExternalDNS"
-                    metadata.name = "dns-edns"
-                    spec.aws = {
+                    apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                    kind = "PodIdentity"
+                    metadata.name = "dns-edns-pod-identity"
+                    spec = {
                         region = "us-west-2"
                         permissionsBoundaryArn = "arn:aws:iam::123456789012:policy/boundary"
                         rolePrefix = "prod-"
                     }
                 }
                 {
-                    apiVersion = "helm.aws.hops.ops.com.ai/v1alpha1"
-                    kind = "CertManager"
-                    metadata.name = "dns-cm"
-                    spec.aws = {
+                    apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                    kind = "PodIdentity"
+                    metadata.name = "dns-cm-pod-identity"
+                    spec = {
                         region = "us-west-2"
                         permissionsBoundaryArn = "arn:aws:iam::123456789012:policy/boundary"
                         rolePrefix = "prod-"
@@ -355,10 +349,10 @@ _items = [
             }
             assertResources = [
                 {
-                    apiVersion = "helm.aws.hops.ops.com.ai/v1alpha1"
-                    kind = "ExternalDNS"
+                    apiVersion = "helm.m.crossplane.io/v1beta1"
+                    kind = "Release"
                     metadata.name = "dns-edns"
-                    spec.values.domainFilters = ["example.com"]
+                    spec.forProvider.values.domainFilters = ["example.com"]
                 }
             ]
         }
