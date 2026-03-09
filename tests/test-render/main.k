@@ -2,7 +2,7 @@ import models.io.upbound.dev.meta.v1alpha1 as metav1alpha1
 import models.k8s.apimachinery.pkg.apis.meta.v1 as metav1
 
 # ==============================================================================
-# Unit tests for stacks.aws DNSStack XRD
+# Unit tests for aws DNSStack XRD
 # ==============================================================================
 
 _items = [
@@ -17,7 +17,7 @@ _items = [
             timeoutSeconds = 60
             validate = False
             xr = {
-                apiVersion = "stacks.aws.hops.ops.com.ai/v1alpha1"
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                 kind = "DNSStack"
                 metadata.name = "dns"
                 spec = {
@@ -90,7 +90,7 @@ _items = [
             timeoutSeconds = 60
             validate = False
             xr = {
-                apiVersion = "stacks.aws.hops.ops.com.ai/v1alpha1"
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                 kind = "DNSStack"
                 metadata.name = "dns"
                 spec = {
@@ -135,7 +135,7 @@ _items = [
             timeoutSeconds = 60
             validate = False
             xr = {
-                apiVersion = "stacks.aws.hops.ops.com.ai/v1alpha1"
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                 kind = "DNSStack"
                 metadata.name = "dns"
                 spec = {
@@ -198,7 +198,7 @@ _items = [
             timeoutSeconds = 60
             validate = False
             xr = {
-                apiVersion = "stacks.aws.hops.ops.com.ai/v1alpha1"
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                 kind = "DNSStack"
                 metadata.name = "dns"
                 spec = {
@@ -216,7 +216,7 @@ _items = [
             }
             assertResources = [
                 {
-                    apiVersion = "stacks.aws.hops.ops.com.ai/v1alpha1"
+                    apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                     kind = "DNSStack"
                     metadata.name = "dns"
                     status.ready = False
@@ -236,7 +236,7 @@ _items = [
             timeoutSeconds = 60
             validate = False
             xr = {
-                apiVersion = "stacks.aws.hops.ops.com.ai/v1alpha1"
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                 kind = "DNSStack"
                 metadata.name = "dns"
                 spec = {
@@ -286,7 +286,7 @@ _items = [
             timeoutSeconds = 60
             validate = False
             xr = {
-                apiVersion = "stacks.aws.hops.ops.com.ai/v1alpha1"
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                 kind = "DNSStack"
                 metadata.name = "dns"
                 spec = {
@@ -337,7 +337,7 @@ _items = [
             timeoutSeconds = 60
             validate = False
             xr = {
-                apiVersion = "stacks.aws.hops.ops.com.ai/v1alpha1"
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                 kind = "DNSStack"
                 metadata.name = "dns"
                 spec = {
@@ -375,7 +375,7 @@ _items = [
             timeoutSeconds = 60
             validate = False
             xr = {
-                apiVersion = "stacks.aws.hops.ops.com.ai/v1alpha1"
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                 kind = "DNSStack"
                 metadata.name = "dns"
                 spec = {

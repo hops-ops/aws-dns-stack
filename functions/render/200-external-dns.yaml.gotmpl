@@ -1,56 +1,132 @@
 # code: language=yaml
 #
-# Compose ExternalDNS sub-XRD
+# ExternalDNS — Helm Release + AWS Pod Identity (inlined)
 #
 
 {{- if $state.externalDNS.enabled }}
 
+# ==============================================================================
+# Helm Release for external-dns
+# ==============================================================================
+
 {{- /* Merge domainFilters from spec.domains into ExternalDNS values */ -}}
+{{- $ednsValues := $state.externalDNS.values | default dict }}
 {{- if and (gt (len $state.domainNames) 0) (eq (len $state.externalDNS.overrideAllValues) 0) }}
   {{- $domainValues := dict "domainFilters" $state.domainNames }}
-  {{- $merged := mergeOverwrite $domainValues ($state.externalDNS.values | default dict) }}
-  {{- $_ := set $state.externalDNS "values" $merged }}
+  {{- $ednsValues = mergeOverwrite $domainValues $ednsValues }}
 {{- end }}
 
 ---
-apiVersion: helm.aws.hops.ops.com.ai/v1alpha1
-kind: ExternalDNS
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: Release
 metadata:
-  name: {{ $state.name }}-edns
+  name: {{ $state.externalDNS.releaseName }}
   annotations:
-    {{ setResourceNameAnnotation "external-dns" }}
+    {{ setResourceNameAnnotation "helm-release-external-dns" }}
+  labels: {{ $state.labels | toJson }}
+spec:
+  managementPolicies: {{ $state.managementPolicies | toJson }}
+  forProvider:
+    chart:
+      name: external-dns
+      repository: https://kubernetes-sigs.github.io/external-dns/
+      version: 1.20.0
+    namespace: {{ $state.externalDNS.namespace }}
+    {{- if gt (len $state.externalDNS.overrideAllValues) 0 }}
+    values:
+      {{- toYaml $state.externalDNS.overrideAllValues | nindent 6 }}
+    {{- else }}
+    values:
+      sources:
+        - service
+        - ingress
+      policy: upsert-only
+      registry: txt
+      interval: 1m
+      {{- if $ednsValues }}
+      {{- toYaml $ednsValues | nindent 6 }}
+      {{- end }}
+    {{- end }}
+  rollbackLimit: 3
+  providerConfigRef:
+    name: {{ $state.helm.providerConfigRef.name }}
+    kind: {{ $state.helm.providerConfigRef.kind }}
+
+# ==============================================================================
+# AWS Pod Identity for external-dns Route53 access
+# ==============================================================================
+---
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: PodIdentity
+metadata:
+  name: {{ $state.name }}-edns-pod-identity
+  annotations:
+    {{ setResourceNameAnnotation "edns-pod-identity" }}
   labels: {{ $state.labels | toJson }}
 spec:
   managementPolicies: {{ $state.managementPolicies | toJson }}
   clusterName: {{ $state.clusterName }}
-  aws:
-    region: {{ $state.aws.region }}
-    {{- if $state.aws.permissionsBoundaryArn }}
-    permissionsBoundaryArn: {{ $state.aws.permissionsBoundaryArn }}
-    {{- end }}
-    {{- if $state.aws.rolePrefix }}
-    rolePrefix: {{ $state.aws.rolePrefix }}
-    {{- end }}
-    {{- if gt (len $state.aws.tags) 0 }}
-    tags: {{ $state.aws.tags | toJson }}
-    {{- end }}
-  helmProviderConfigRef:
-    name: {{ $state.helm.providerConfigRef.name }}
-    kind: {{ $state.helm.providerConfigRef.kind }}
-  awsProviderConfigRef:
+  region: {{ $state.aws.region }}
+  providerConfigRef:
     name: {{ $state.aws.providerConfigRef.name }}
     kind: {{ $state.aws.providerConfigRef.kind }}
-  {{- if $state.externalDNS.namespace }}
-  namespace: {{ $state.externalDNS.namespace }}
+  {{- if $state.aws.rolePrefix }}
+  rolePrefix: {{ $state.aws.rolePrefix }}
   {{- end }}
-  {{- if $state.externalDNS.name }}
-  name: {{ $state.externalDNS.name }}
+  {{- if $state.aws.permissionsBoundaryArn }}
+  permissionsBoundaryArn: {{ $state.aws.permissionsBoundaryArn }}
   {{- end }}
-  {{- if gt (len $state.externalDNS.overrideAllValues) 0 }}
-  overrideAllValues:
-    {{- toYaml $state.externalDNS.overrideAllValues | nindent 4 }}
-  {{- else if gt (len $state.externalDNS.values) 0 }}
-  values:
-    {{- toYaml $state.externalDNS.values | nindent 4 }}
-  {{- end }}
+  serviceAccount:
+    name: external-dns
+    namespace: {{ $state.externalDNS.namespace }}
+  inlinePolicy:
+    - name: external-dns-route53
+      policy: |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "route53:ChangeResourceRecordSets",
+              "Resource": "arn:aws:route53:::hostedzone/*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "route53:ListHostedZones",
+                "route53:ListResourceRecordSets",
+                "route53:ListTagsForResource"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+  tags: {{ $state.aws.tags | toJson }}
+
+# ==============================================================================
+# Usage: Protect PodIdentity from deletion until Helm release is deleted
+# ==============================================================================
+{{- if and $state.observed.externalDNS.helmReady $state.observed.externalDNS.podIdentityReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $state.name }}-delete-edns-helm-before-pod-identity
+  annotations:
+    {{ setResourceNameAnnotation "usage-edns-pod-identity" }}
+  labels: {{ $state.labels | toJson }}
+spec:
+  of:
+    apiVersion: aws.hops.ops.com.ai/v1alpha1
+    kind: PodIdentity
+    resourceRef:
+      name: {{ $state.name }}-edns-pod-identity
+  by:
+    apiVersion: helm.m.crossplane.io/v1beta1
+    kind: Release
+    resourceRef:
+      name: {{ $state.externalDNS.releaseName }}
+  replayDeletion: true
+{{- end }}
+
 {{- end }}

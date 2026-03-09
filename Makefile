@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-PACKAGE ?= stack-aws-dns
+PACKAGE ?= aws-dns-stack
 XRD_DIR := apis/dnsstacks
 COMPOSITION := $(XRD_DIR)/composition.yaml
 DEFINITION := $(XRD_DIR)/definition.yaml

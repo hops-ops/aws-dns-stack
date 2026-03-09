@@ -1,4 +1,4 @@
-# stack-aws-dns
+# aws-dns-stack
 
 Deploys DNS and TLS automation: Route53 hosted zones, ExternalDNS for automatic DNS record management, CertManager for automated TLS certificates, and a ClusterIssuer configured for Let's Encrypt DNS-01 validation via Route53.
 
@@ -23,7 +23,7 @@ Deploys DNS and TLS automation: Route53 hosted zones, ExternalDNS for automatic 
 Minimal configuration for a single domain with automatic DNS and TLS.
 
 ```yaml
-apiVersion: stacks.aws.hops.ops.com.ai/v1alpha1
+apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: DNSStack
 metadata:
   name: dns
@@ -48,7 +48,7 @@ This creates:
 Add multiple domains and customize AWS settings.
 
 ```yaml
-apiVersion: stacks.aws.hops.ops.com.ai/v1alpha1
+apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: DNSStack
 metadata:
   name: dns
@@ -73,7 +73,7 @@ spec:
 Adopt existing Route53 hosted zones without recreating them.
 
 ```yaml
-apiVersion: stacks.aws.hops.ops.com.ai/v1alpha1
+apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: DNSStack
 metadata:
   name: dns

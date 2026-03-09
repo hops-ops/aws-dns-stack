@@ -52,7 +52,7 @@ jobs:
       aws-role-duration-seconds: 7200
       debug-resource-types: |
         [
-          "dnsstacks.stacks.aws.hops.ops.com.ai"
+          "dnsstacks.aws.hops.ops.com.ai"
         ]
       delete-extra-resources: |
         [

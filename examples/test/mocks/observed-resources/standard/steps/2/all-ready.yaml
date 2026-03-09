@@ -51,15 +51,15 @@ status:
       - ns-777.awsdns-77.co.uk
       - ns-888.awsdns-88.org
 
-# ExternalDNS sub-XRD
+# ExternalDNS Helm Release
 ---
-apiVersion: helm.aws.hops.ops.com.ai/v1alpha1
-kind: ExternalDNS
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: Release
 metadata:
   name: dns-edns
   annotations:
-    crossplane.io/composition-resource-name: external-dns
-    gotemplating.fn.crossplane.io/composition-resource-name: external-dns
+    crossplane.io/composition-resource-name: helm-release-external-dns
+    gotemplating.fn.crossplane.io/composition-resource-name: helm-release-external-dns
 status:
   conditions:
     - type: Ready
@@ -68,21 +68,37 @@ status:
       lastTransitionTime: "2024-01-01T00:00:00Z"
     - type: Synced
       status: "True"
-  ready: true
-  release:
-    name: external-dns
-    namespace: external-dns
-    ready: true
+  atProvider:
+    state: deployed
+    revision: "1"
 
-# CertManager sub-XRD
+# ExternalDNS Pod Identity
 ---
-apiVersion: helm.aws.hops.ops.com.ai/v1alpha1
-kind: CertManager
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: PodIdentity
+metadata:
+  name: dns-edns-pod-identity
+  annotations:
+    crossplane.io/composition-resource-name: edns-pod-identity
+    gotemplating.fn.crossplane.io/composition-resource-name: edns-pod-identity
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+    - type: Synced
+      status: "True"
+
+# CertManager Helm Release
+---
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: Release
 metadata:
   name: dns-cm
   annotations:
-    crossplane.io/composition-resource-name: cert-manager
-    gotemplating.fn.crossplane.io/composition-resource-name: cert-manager
+    crossplane.io/composition-resource-name: helm-release-cert-manager
+    gotemplating.fn.crossplane.io/composition-resource-name: helm-release-cert-manager
 status:
   conditions:
     - type: Ready
@@ -91,11 +107,27 @@ status:
       lastTransitionTime: "2024-01-01T00:00:00Z"
     - type: Synced
       status: "True"
-  ready: true
-  release:
-    name: cert-manager
-    namespace: cert-manager
-    ready: true
+  atProvider:
+    state: deployed
+    revision: "1"
+
+# CertManager Pod Identity
+---
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: PodIdentity
+metadata:
+  name: dns-cm-pod-identity
+  annotations:
+    crossplane.io/composition-resource-name: cm-pod-identity
+    gotemplating.fn.crossplane.io/composition-resource-name: cm-pod-identity
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+    - type: Synced
+      status: "True"
 
 # ClusterIssuer Object
 ---

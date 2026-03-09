@@ -25,8 +25,8 @@ spec:
     name: {{ $state.aws.providerConfigRef.name }}
     kind: {{ $state.aws.providerConfigRef.kind }}
 
-{{- /* Usage: delete external-dns before hosted zone (if both ready) */}}
-{{- if and $state.externalDNS.enabled $state.observed.externalDNS.ready }}
+{{- /* Usage: delete external-dns helm release before hosted zone */}}
+{{- if and $state.externalDNS.enabled $state.observed.externalDNS.helmReady }}
 {{- $hzInfo := get $state.observed.hostedZones $d.name | default dict }}
 {{- if $hzInfo.zoneId }}
 ---
@@ -44,10 +44,10 @@ spec:
     resourceRef:
       name: {{ $state.name }}-hz-{{ $sanitized }}
   by:
-    apiVersion: helm.aws.hops.ops.com.ai/v1alpha1
-    kind: ExternalDNS
+    apiVersion: helm.m.crossplane.io/v1beta1
+    kind: Release
     resourceRef:
-      name: {{ $state.name }}-edns
+      name: {{ $state.externalDNS.releaseName }}
 {{- end }}
 {{- end }}
 

@@ -8,27 +8,51 @@
 # ==============================================================================
 {{- $observed := $.observed.resources | default dict }}
 
-# Check if external-dns is ready
-{{- $ednsObs := get $observed "external-dns" | default dict }}
-{{- $ednsResource := $ednsObs.resource | default dict }}
-{{- $ednsStatus := $ednsResource.status | default dict }}
-{{- $ednsConditions := $ednsStatus.conditions | default list }}
-{{- $ednsReady := false }}
-{{- range $cond := $ednsConditions }}
+# Check if external-dns helm release is ready
+{{- $ednsHelmObs := get $observed "helm-release-external-dns" | default dict }}
+{{- $ednsHelmResource := $ednsHelmObs.resource | default dict }}
+{{- $ednsHelmStatus := $ednsHelmResource.status | default dict }}
+{{- $ednsHelmConditions := $ednsHelmStatus.conditions | default list }}
+{{- $ednsHelmReady := false }}
+{{- range $cond := $ednsHelmConditions }}
   {{- if and (eq $cond.type "Ready") (eq $cond.status "True") }}
-    {{- $ednsReady = true }}
+    {{- $ednsHelmReady = true }}
   {{- end }}
 {{- end }}
 
-# Check if cert-manager is ready
-{{- $cmObs := get $observed "cert-manager" | default dict }}
-{{- $cmResource := $cmObs.resource | default dict }}
-{{- $cmStatus := $cmResource.status | default dict }}
-{{- $cmConditions := $cmStatus.conditions | default list }}
-{{- $cmReady := false }}
-{{- range $cond := $cmConditions }}
+# Check if external-dns pod-identity is ready
+{{- $ednsPodIdObs := get $observed "edns-pod-identity" | default dict }}
+{{- $ednsPodIdResource := $ednsPodIdObs.resource | default dict }}
+{{- $ednsPodIdStatus := $ednsPodIdResource.status | default dict }}
+{{- $ednsPodIdConditions := $ednsPodIdStatus.conditions | default list }}
+{{- $ednsPodIdReady := false }}
+{{- range $cond := $ednsPodIdConditions }}
   {{- if and (eq $cond.type "Ready") (eq $cond.status "True") }}
-    {{- $cmReady = true }}
+    {{- $ednsPodIdReady = true }}
+  {{- end }}
+{{- end }}
+
+# Check if cert-manager helm release is ready
+{{- $cmHelmObs := get $observed "helm-release-cert-manager" | default dict }}
+{{- $cmHelmResource := $cmHelmObs.resource | default dict }}
+{{- $cmHelmStatus := $cmHelmResource.status | default dict }}
+{{- $cmHelmConditions := $cmHelmStatus.conditions | default list }}
+{{- $cmHelmReady := false }}
+{{- range $cond := $cmHelmConditions }}
+  {{- if and (eq $cond.type "Ready") (eq $cond.status "True") }}
+    {{- $cmHelmReady = true }}
+  {{- end }}
+{{- end }}
+
+# Check if cert-manager pod-identity is ready
+{{- $cmPodIdObs := get $observed "cm-pod-identity" | default dict }}
+{{- $cmPodIdResource := $cmPodIdObs.resource | default dict }}
+{{- $cmPodIdStatus := $cmPodIdResource.status | default dict }}
+{{- $cmPodIdConditions := $cmPodIdStatus.conditions | default list }}
+{{- $cmPodIdReady := false }}
+{{- range $cond := $cmPodIdConditions }}
+  {{- if and (eq $cond.type "Ready") (eq $cond.status "True") }}
+    {{- $cmPodIdReady = true }}
   {{- end }}
 {{- end }}
 
@@ -52,8 +76,14 @@
 {{- $ready := false }}
 
 {{- $state = set $state "observed" (dict
-  "externalDNS" (dict "ready" $ednsReady)
-  "certManager" (dict "ready" $cmReady)
+  "externalDNS" (dict
+    "helmReady" $ednsHelmReady
+    "podIdentityReady" $ednsPodIdReady
+  )
+  "certManager" (dict
+    "helmReady" $cmHelmReady
+    "podIdentityReady" $cmPodIdReady
+  )
   "hostedZones" $hostedZones
 ) }}
 

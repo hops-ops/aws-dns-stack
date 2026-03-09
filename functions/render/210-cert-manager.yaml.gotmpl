@@ -1,48 +1,127 @@
 # code: language=yaml
 #
-# Compose CertManager sub-XRD
+# CertManager — Helm Release + AWS Pod Identity (inlined)
 #
 
 {{- if $state.certManager.enabled }}
+
+# ==============================================================================
+# Helm Release for cert-manager
+# ==============================================================================
 ---
-apiVersion: helm.aws.hops.ops.com.ai/v1alpha1
-kind: CertManager
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: Release
 metadata:
-  name: {{ $state.name }}-cm
+  name: {{ $state.certManager.releaseName }}
   annotations:
-    {{ setResourceNameAnnotation "cert-manager" }}
+    {{ setResourceNameAnnotation "helm-release-cert-manager" }}
+  labels: {{ $state.labels | toJson }}
+spec:
+  managementPolicies: {{ $state.managementPolicies | toJson }}
+  forProvider:
+    chart:
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: v1.19.2
+    namespace: {{ $state.certManager.namespace }}
+    {{- if gt (len $state.certManager.overrideAllValues) 0 }}
+    values:
+      {{- toYaml $state.certManager.overrideAllValues | nindent 6 }}
+    {{- else }}
+    values:
+      crds:
+        enabled: true
+      global:
+        leaderElection:
+          namespace: {{ $state.certManager.namespace }}
+      {{- if $state.certManager.values }}
+      {{- toYaml $state.certManager.values | nindent 6 }}
+      {{- end }}
+    {{- end }}
+  rollbackLimit: 3
+  providerConfigRef:
+    name: {{ $state.helm.providerConfigRef.name }}
+    kind: {{ $state.helm.providerConfigRef.kind }}
+
+# ==============================================================================
+# AWS Pod Identity for cert-manager Route53 access
+# ==============================================================================
+---
+apiVersion: aws.hops.ops.com.ai/v1alpha1
+kind: PodIdentity
+metadata:
+  name: {{ $state.name }}-cm-pod-identity
+  annotations:
+    {{ setResourceNameAnnotation "cm-pod-identity" }}
   labels: {{ $state.labels | toJson }}
 spec:
   managementPolicies: {{ $state.managementPolicies | toJson }}
   clusterName: {{ $state.clusterName }}
-  aws:
-    region: {{ $state.aws.region }}
-    {{- if $state.aws.permissionsBoundaryArn }}
-    permissionsBoundaryArn: {{ $state.aws.permissionsBoundaryArn }}
-    {{- end }}
-    {{- if $state.aws.rolePrefix }}
-    rolePrefix: {{ $state.aws.rolePrefix }}
-    {{- end }}
-    {{- if gt (len $state.aws.tags) 0 }}
-    tags: {{ $state.aws.tags | toJson }}
-    {{- end }}
-  helmProviderConfigRef:
-    name: {{ $state.helm.providerConfigRef.name }}
-    kind: {{ $state.helm.providerConfigRef.kind }}
-  awsProviderConfigRef:
+  region: {{ $state.aws.region }}
+  providerConfigRef:
     name: {{ $state.aws.providerConfigRef.name }}
     kind: {{ $state.aws.providerConfigRef.kind }}
-  {{- if $state.certManager.namespace }}
-  namespace: {{ $state.certManager.namespace }}
+  {{- if $state.aws.rolePrefix }}
+  rolePrefix: {{ $state.aws.rolePrefix }}
   {{- end }}
-  {{- if $state.certManager.name }}
-  name: {{ $state.certManager.name }}
+  {{- if $state.aws.permissionsBoundaryArn }}
+  permissionsBoundaryArn: {{ $state.aws.permissionsBoundaryArn }}
   {{- end }}
-  {{- if gt (len $state.certManager.overrideAllValues) 0 }}
-  overrideAllValues:
-    {{- toYaml $state.certManager.overrideAllValues | nindent 4 }}
-  {{- else if gt (len $state.certManager.values) 0 }}
-  values:
-    {{- toYaml $state.certManager.values | nindent 4 }}
-  {{- end }}
+  serviceAccount:
+    name: cert-manager
+    namespace: {{ $state.certManager.namespace }}
+  inlinePolicy:
+    - name: cert-manager-route53
+      policy: |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "route53:GetChange",
+              "Resource": "arn:aws:route53:::change/*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "route53:ChangeResourceRecordSets",
+                "route53:ListResourceRecordSets"
+              ],
+              "Resource": "arn:aws:route53:::hostedzone/*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": "route53:ListHostedZonesByName",
+              "Resource": "*"
+            }
+          ]
+        }
+  tags: {{ $state.aws.tags | toJson }}
+
+# ==============================================================================
+# Usage: Protect PodIdentity from deletion until Helm release is deleted
+# ==============================================================================
+{{- if and $state.observed.certManager.helmReady $state.observed.certManager.podIdentityReady }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ $state.name }}-delete-cm-helm-before-pod-identity
+  annotations:
+    {{ setResourceNameAnnotation "usage-cm-pod-identity" }}
+  labels: {{ $state.labels | toJson }}
+spec:
+  of:
+    apiVersion: aws.hops.ops.com.ai/v1alpha1
+    kind: PodIdentity
+    resourceRef:
+      name: {{ $state.name }}-cm-pod-identity
+  by:
+    apiVersion: helm.m.crossplane.io/v1beta1
+    kind: Release
+    resourceRef:
+      name: {{ $state.certManager.releaseName }}
+  replayDeletion: true
+{{- end }}
+
 {{- end }}

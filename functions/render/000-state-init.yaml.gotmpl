@@ -51,7 +51,7 @@
 }}
 
 # ==============================================================================
-# Component config
+# ExternalDNS config
 # ==============================================================================
 {{- $edns := $spec.externalDNS | default dict }}
 {{- $ednsEnabled := true }}
@@ -59,12 +59,24 @@
   {{- $ednsEnabled = $edns.enabled }}
 {{- end }}
 
+{{- $ednsNamespace := $edns.namespace | default "external-dns" }}
+{{- $ednsReleaseName := $edns.name | default (printf "%s-edns" $name) }}
+
+# ==============================================================================
+# CertManager config
+# ==============================================================================
 {{- $cm := $spec.certManager | default dict }}
 {{- $cmEnabled := true }}
 {{- if hasKey $cm "enabled" }}
   {{- $cmEnabled = $cm.enabled }}
 {{- end }}
 
+{{- $cmNamespace := $cm.namespace | default "cert-manager" }}
+{{- $cmReleaseName := $cm.name | default (printf "%s-cm" $name) }}
+
+# ==============================================================================
+# ClusterIssuer config
+# ==============================================================================
 {{- $ci := $spec.clusterIssuer | default dict }}
 {{- $ciEnabled := true }}
 {{- if hasKey $ci "enabled" }}
@@ -126,15 +138,15 @@
   "domainNames" $domainNames
   "externalDNS" (dict
     "enabled" $ednsEnabled
-    "namespace" ($edns.namespace | default "")
-    "name" ($edns.name | default "")
+    "namespace" $ednsNamespace
+    "releaseName" $ednsReleaseName
     "values" ($edns.values | default dict)
     "overrideAllValues" ($edns.overrideAllValues | default dict)
   )
   "certManager" (dict
     "enabled" $cmEnabled
-    "namespace" ($cm.namespace | default "")
-    "name" ($cm.name | default "")
+    "namespace" $cmNamespace
+    "releaseName" $cmReleaseName
     "values" ($cm.values | default dict)
     "overrideAllValues" ($cm.overrideAllValues | default dict)
   )

@@ -1,11 +1,11 @@
-# e2etest-dnsstack - stacks.aws DNSStack E2E Test
+# e2etest-dnsstack - aws DNSStack E2E Test
 # =================================================
 # Tests deployment of the DNS stack (ExternalDNS, CertManager, ClusterIssuer)
 # on an EKS cluster.
 #
 # This test creates:
 # 1. An AutoEKSCluster using subnet IDs from the persistent hops-test network
-# 2. A stacks.aws DNSStack that composes:
+# 2. A aws DNSStack that composes:
 #    - helm-aws-external-dns (ExternalDNS with Pod Identity)
 #    - helm-aws-cert-manager (CertManager with Pod Identity)
 #    - ClusterIssuer (Let's Encrypt DNS-01 via Route53)
@@ -28,7 +28,7 @@ import file
 import datetime
 import math
 import models.io.upbound.dev.meta.v1alpha1 as metav1alpha1
-import models.ai.com.ops.hops.aws.stacks.v1alpha1 as stacksv1alpha1
+import models.ai.com.ops.hops.aws.v1alpha1 as awsv1alpha1
 
 # Read AWS credentials from local file (gitignored)
 _creds = file.read("secrets/aws-creds")
@@ -212,7 +212,7 @@ _items = [
                         tags = {
                             "e2etest" = "true"
                             "test-run" = _now
-                            "repo": "https://github.com/hops-ops/stack-aws-dns"
+                            "repo": "https://github.com/hops-ops/aws-dns-stack"
                         }
                         publicAccess = True
                         nodeConfig = {
@@ -228,7 +228,7 @@ _items = [
             # Note: Uses persistent hops-test network - no Network manifest needed
             manifests = [
                 # DNS AWS Stack
-                stacksv1alpha1.DNSStack {
+                awsv1alpha1.DNSStack {
                     metadata.name = "dns"
                     metadata.namespace = _namespace
                     spec = {
