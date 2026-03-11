@@ -14,3 +14,4 @@ apis/**/configuration.yaml
 # E2E test credentials (never commit secrets)
 **/aws-creds
 tests/**/secrets/
+tests/**/env/
