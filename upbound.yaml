@@ -23,7 +23,7 @@ spec:
   - apiVersion: pkg.crossplane.io/v1
     kind: Configuration
     package: ghcr.io/hops-ops/aws-pod-identity
-    version: '>=v0.9.0'
+    version: '>=v0.10.0'
   description: Deploys the DNS stack (ExternalDNS, CertManager, ClusterIssuer with
     Let's Encrypt DNS-01 Route53).
   license: Apache-2.0
