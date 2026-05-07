@@ -1,56 +1,30 @@
 # code: language=yaml
 #
-# CertManager — Helm Release + AWS Pod Identity (inlined)
+# cert-manager Route53 PodIdentity — AWS-side DNS-01 plumbing.
+#
+# Binds the cert-manager ServiceAccount to an IAM role that grants
+# Route53 ChangeResourceRecordSets / ListResourceRecordSets /
+# ListHostedZonesByName / GetChange — exactly the permissions needed
+# for DNS-01 ACME challenges via Route53.
+#
+# Composed via the aws-pod-identity Configuration package's PodIdentity XR.
+#
+# Gated on $state.certManager.enabled. The PodIdentity and ClusterIssuer
+# share one toggle because they're useless apart — a ClusterIssuer with no
+# IAM credentials can't solve challenges, and IAM with no ClusterIssuer
+# does nothing.
+#
+# This stack does NOT install cert-manager itself — that's owned by cert-stack
+# (xrs/stacks/k8s/cert/). Override $state.certManager.namespace if your
+# cert-stack release runs in a non-default namespace.
 #
 
 {{- if $state.certManager.enabled }}
-
-# ==============================================================================
-# Helm Release for cert-manager
-# ==============================================================================
----
-apiVersion: helm.m.crossplane.io/v1beta1
-kind: Release
-metadata:
-  name: {{ $state.certManager.releaseName }}
-  annotations:
-    {{ setResourceNameAnnotation "helm-release-cert-manager" }}
-  labels: {{ $state.labels | toJson }}
-spec:
-  managementPolicies: {{ $state.managementPolicies | toJson }}
-  forProvider:
-    chart:
-      name: cert-manager
-      repository: https://charts.jetstack.io
-      version: v1.19.2
-    namespace: {{ $state.certManager.namespace }}
-    {{- if gt (len $state.certManager.overrideAllValues) 0 }}
-    values:
-      {{- toYaml $state.certManager.overrideAllValues | nindent 6 }}
-    {{- else }}
-    values:
-      crds:
-        enabled: true
-      global:
-        leaderElection:
-          namespace: {{ $state.certManager.namespace }}
-      {{- if $state.certManager.values }}
-      {{- toYaml $state.certManager.values | nindent 6 }}
-      {{- end }}
-    {{- end }}
-  rollbackLimit: 3
-  providerConfigRef:
-    name: {{ $state.helm.providerConfigRef.name }}
-    kind: {{ $state.helm.providerConfigRef.kind }}
-
-# ==============================================================================
-# AWS Pod Identity for cert-manager Route53 access
-# ==============================================================================
 ---
 apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: PodIdentity
 metadata:
-  name: {{ $state.name }}-cm-pod-identity
+  name: {{ $state.name }}-cm
   annotations:
     {{ setResourceNameAnnotation "cm-pod-identity" }}
   labels: {{ $state.labels | toJson }}
@@ -99,9 +73,11 @@ spec:
   tags: {{ $state.aws.tags | toJson }}
 
 # ==============================================================================
-# Usage: Protect PodIdentity from deletion until Helm release is deleted
+# Usage: hold the external cert-manager Helm Release until the PodIdentity
+# is gone. Deleting the PodIdentity first would yank cert-manager's IAM creds
+# while the controller is still running.
 # ==============================================================================
-{{- if and $state.observed.certManager.helmReady $state.observed.certManager.podIdentityReady }}
+{{- if $state.observed.certManager.podIdentityReady }}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -111,17 +87,16 @@ metadata:
     {{ setResourceNameAnnotation "usage-cm-pod-identity" }}
   labels: {{ $state.labels | toJson }}
 spec:
+  replayDeletion: true
   of:
     apiVersion: aws.hops.ops.com.ai/v1alpha1
     kind: PodIdentity
     resourceRef:
-      name: {{ $state.name }}-cm-pod-identity
+      name: {{ $state.name }}-cm
   by:
     apiVersion: helm.m.crossplane.io/v1beta1
     kind: Release
     resourceRef:
       name: {{ $state.certManager.releaseName }}
-  replayDeletion: true
 {{- end }}
-
 {{- end }}

@@ -77,7 +77,7 @@ status:
 apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: PodIdentity
 metadata:
-  name: dns-edns-pod-identity
+  name: dns-edns
   annotations:
     crossplane.io/composition-resource-name: edns-pod-identity
     gotemplating.fn.crossplane.io/composition-resource-name: edns-pod-identity
@@ -90,33 +90,12 @@ status:
     - type: Synced
       status: "True"
 
-# CertManager Helm Release
----
-apiVersion: helm.m.crossplane.io/v1beta1
-kind: Release
-metadata:
-  name: dns-cm
-  annotations:
-    crossplane.io/composition-resource-name: helm-release-cert-manager
-    gotemplating.fn.crossplane.io/composition-resource-name: helm-release-cert-manager
-status:
-  conditions:
-    - type: Ready
-      status: "True"
-      reason: Available
-      lastTransitionTime: "2024-01-01T00:00:00Z"
-    - type: Synced
-      status: "True"
-  atProvider:
-    state: deployed
-    revision: "1"
-
-# CertManager Pod Identity
+# cert-manager Pod Identity
 ---
 apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: PodIdentity
 metadata:
-  name: dns-cm-pod-identity
+  name: dns-cm
   annotations:
     crossplane.io/composition-resource-name: cm-pod-identity
     gotemplating.fn.crossplane.io/composition-resource-name: cm-pod-identity

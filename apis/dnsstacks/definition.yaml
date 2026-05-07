@@ -132,27 +132,19 @@ spec:
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
               certManager:
-                description: CertManager configuration.
+                description: cert-manager integration. This stack does NOT install cert-manager — install it separately (e.g. via cert-stack). When enabled, this stack composes the AWS-side DNS-01 plumbing for cert-manager — a Route53 IAM PodIdentity bound to the cert-manager ServiceAccount, the Let's Encrypt ClusterIssuer, and a deletion-ordering Usage holding the external Helm Release until the integration is gone. PodIdentity and ClusterIssuer share one toggle because they're useless apart.
                 type: object
                 properties:
                   enabled:
-                    description: Whether to deploy CertManager. Defaults to true.
+                    description: Whether to render the cert-manager integration (Route53 PodIdentity + ClusterIssuer + Usages). Defaults to true. Set to false on clusters where cert-manager is not installed or the DNS-01 Route53 integration is not wanted.
                     type: boolean
                     default: true
-                  namespace:
-                    description: Namespace for the Helm release.
-                    type: string
                   name:
-                    description: Name override for the Helm release.
+                    description: metadata.name of the external cert-manager Helm Release in the control plane. Used by the deletion-ordering Usage. Defaults to "cert-manager", matching cert-stack's spec.releaseName default.
                     type: string
-                  values:
-                    description: Helm values merged on top of defaults.
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
-                  overrideAllValues:
-                    description: Replaces all default Helm values entirely.
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
+                  namespace:
+                    description: Namespace where cert-manager runs (and where its ServiceAccount lives). The composed PodIdentity binds to the cert-manager ServiceAccount in this namespace. Defaults to "cert-manager", matching cert-stack's spec.namespace default.
+                    type: string
               clusterIssuer:
                 description: ClusterIssuer configuration (Let's Encrypt with DNS-01 Route53).
                 type: object

@@ -24,14 +24,19 @@ spec:
     kind: Configuration
     package: ghcr.io/hops-ops/aws-pod-identity
     version: '>=v0.10.1'
-  description: Deploys the DNS stack (ExternalDNS, CertManager, ClusterIssuer with
-    Let's Encrypt DNS-01 Route53).
+  description: Deploys ExternalDNS + Route53 hosted zones and (optionally) the cert-manager
+    integration — a Let's Encrypt DNS-01 ClusterIssuer wired to those zones plus a
+    deletion-ordering Usage. cert-manager itself is NOT installed by this stack; pair
+    with aws-cert-stack (or another cert-manager install) when spec.certManager.enabled
+    is true.
   license: Apache-2.0
   maintainer: Patrick Lee Scott <pat@patscott.io>
   readme: |
     # aws-dns-stack
 
-    Deploys DNS and TLS automation: ExternalDNS, CertManager with
-    ClusterIssuer (Let's Encrypt DNS-01 via Route53).
+    ExternalDNS + Route53 hosted zones, plus optional cert-manager
+    integration (Let's Encrypt DNS-01 ClusterIssuer wired to the hosted
+    zones). cert-manager itself is installed separately — typically via
+    aws-cert-stack.
   repository: ghcr.io/hops-ops/aws-dns-stack
   source: github.com/hops-ops/aws-dns-stack

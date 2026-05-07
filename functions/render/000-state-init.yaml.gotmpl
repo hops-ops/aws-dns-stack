@@ -17,7 +17,7 @@
 # Labels
 {{- $defaultLabels := dict
   "hops.ops.com.ai/managed" "true"
-  "hops.ops.com.ai/dnsstack" $name
+  (printf "hops.ops.com.ai/%s" (lower $xr.kind)) $name
 }}
 {{- $labels := mergeOverwrite (dict) $defaultLabels ($spec.labels | default dict) }}
 
@@ -25,7 +25,7 @@
 {{- $aws := $spec.aws | default dict }}
 {{- $defaultTags := dict
   "hops.ops.com.ai/managed" "true"
-  "hops.ops.com.ai/dnsstack" $name
+  (printf "hops.ops.com.ai/%s" (lower $xr.kind)) $name
 }}
 {{- $awsTags := mergeOverwrite (dict) $defaultTags ($aws.tags | default dict) }}
 
@@ -63,16 +63,28 @@
 {{- $ednsReleaseName := $edns.name | default (printf "%s-edns" $name) }}
 
 # ==============================================================================
-# CertManager config
+# CertManager integration
 # ==============================================================================
+# This stack does NOT install cert-manager. cert-manager is expected to be
+# installed separately (e.g. via aws-cert-stack). When enabled, this stack
+# only composes the cert-manager *integration*: a ClusterIssuer with a Route53
+# DNS-01 solver wired to this stack's hosted zones, plus a deletion-ordering
+# Usage that protects the ClusterIssuer from deletion before the external
+# Helm Release.
 {{- $cm := $spec.certManager | default dict }}
 {{- $cmEnabled := true }}
 {{- if hasKey $cm "enabled" }}
   {{- $cmEnabled = $cm.enabled }}
 {{- end }}
 
+# Name of the external cert-manager Helm Release in the control plane.
+# Default matches cert-stack's spec.releaseName default ("cert-manager").
+{{- $cmReleaseName := $cm.name | default "cert-manager" }}
+
+# Namespace where cert-manager runs. The composed PodIdentity binds to the
+# cert-manager ServiceAccount in this namespace.
+# Default matches cert-stack's spec.namespace default ("cert-manager").
 {{- $cmNamespace := $cm.namespace | default "cert-manager" }}
-{{- $cmReleaseName := $cm.name | default (printf "%s-cm" $name) }}
 
 # ==============================================================================
 # ClusterIssuer config
@@ -145,10 +157,8 @@
   )
   "certManager" (dict
     "enabled" $cmEnabled
-    "namespace" $cmNamespace
     "releaseName" $cmReleaseName
-    "values" ($cm.values | default dict)
-    "overrideAllValues" ($cm.overrideAllValues | default dict)
+    "namespace" $cmNamespace
   )
   "clusterIssuer" (dict
     "enabled" $ciEnabled

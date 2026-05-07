@@ -1,12 +1,15 @@
 # code: language=yaml
 #
-# ClusterIssuer (Let's Encrypt DNS-01 Route53) via provider-kubernetes Object
-# Only rendered when clusterIssuer.enabled && certManager observed ready
+# cert-manager integration — Let's Encrypt DNS-01 Route53 ClusterIssuer.
+#
+# This stack does NOT install cert-manager. cert-manager is expected to be
+# installed separately (e.g. by aws-cert-stack). Setting spec.certManager.enabled
+# to true means "cert-manager is available; render the integration": the
+# ClusterIssuer Object below + a deletion-ordering Usage that holds the
+# external cert-manager Release until this ClusterIssuer is gone.
 #
 
 {{- if and $state.clusterIssuer.enabled $state.certManager.enabled }}
-
-{{- $cmNamespace := $state.certManager.namespace | default "cert-manager" }}
 
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
@@ -18,10 +21,6 @@ metadata:
   labels: {{ $state.labels | toJson }}
 spec:
   managementPolicies: {{ $state.managementPolicies | toJson }}
-  {{- if $state.observed.certManager.ready }}
-  readiness:
-    policy: SuccessfulCreate
-  {{- end }}
   forProvider:
     manifest:
       apiVersion: cert-manager.io/v1
@@ -64,8 +63,10 @@ spec:
     name: {{ $state.kubernetes.providerConfigRef.name }}
     kind: {{ $state.kubernetes.providerConfigRef.kind }}
 
-{{- /* Usage: delete cluster-issuer before cert-manager */}}
-{{- if $state.observed.certManager.ready }}
+{{- /* Usage: hold the external cert-manager Helm Release until this              */}}
+{{- /* ClusterIssuer is deleted. The Release is composed by another stack         */}}
+{{- /* (e.g. aws-cert-stack). Override spec.certManager.name if your Release      */}}
+{{- /* uses a different metadata.name than the default ("cert-manager").          */}}
 ---
 apiVersion: protection.crossplane.io/v1beta1
 kind: Usage
@@ -76,15 +77,14 @@ metadata:
 spec:
   replayDeletion: true
   of:
-    apiVersion: helm.aws.hops.ops.com.ai/v1alpha1
-    kind: CertManager
+    apiVersion: helm.m.crossplane.io/v1beta1
+    kind: Release
     resourceRef:
-      name: {{ $state.name }}-cm
+      name: {{ $state.certManager.releaseName }}
   by:
     apiVersion: kubernetes.m.crossplane.io/v1alpha1
     kind: Object
     resourceRef:
       name: {{ $state.name }}-cluster-issuer
-{{- end }}
 
 {{- end }}

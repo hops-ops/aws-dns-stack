@@ -3,14 +3,22 @@ import models.k8s.apimachinery.pkg.apis.meta.v1 as metav1
 
 # ==============================================================================
 # Unit tests for aws DNSStack XRD
+#
+# Note: this stack does NOT install cert-manager. It composes ExternalDNS +
+# Route53 hosted zones, plus an optional cert-manager *integration* (a Route53
+# IAM PodIdentity bound to the cert-manager ServiceAccount + a Let's Encrypt
+# ClusterIssuer + deletion-ordering Usages). The cert-manager Helm Release
+# itself is composed by cert-stack (xrs/stacks/k8s/cert/).
 # ==============================================================================
 
 _items = [
     # ==========================================================================
-    # Test 1: Minimal input renders ExternalDNS, CertManager, and ClusterIssuer
+    # Test 1: Minimal input renders ExternalDNS + ClusterIssuer integration.
+    # No cert-manager Helm Release is composed by this stack — it's expected
+    # to come from aws-cert-stack.
     # ==========================================================================
     metav1alpha1.CompositionTest {
-        metadata.name = "minimal-renders-all-components"
+        metadata.name = "minimal-renders-edns-and-cluster-issuer"
         spec = {
             compositionPath = "apis/dnsstacks/composition.yaml"
             xrdPath = "apis/dnsstacks/definition.yaml"
@@ -37,15 +45,6 @@ _items = [
                     metadata.name = "dns-edns"
                     spec = {
                         forProvider.namespace = "external-dns"
-                        providerConfigRef.name = "my-cluster"
-                    }
-                }
-                {
-                    apiVersion = "helm.m.crossplane.io/v1beta1"
-                    kind = "Release"
-                    metadata.name = "dns-cm"
-                    spec = {
-                        forProvider.namespace = "cert-manager"
                         providerConfigRef.name = "my-cluster"
                     }
                 }
@@ -182,10 +181,12 @@ _items = [
     }
 
     # ==========================================================================
-    # Test 4: Disabling components omits them
+    # Test 4: certManager.enabled=false skips the entire integration —
+    # no ClusterIssuer, no cert-manager PodIdentity, no Usages. ExternalDNS
+    # still renders.
     # ==========================================================================
     metav1alpha1.CompositionTest {
-        metadata.name = "disabled-components-omitted"
+        metadata.name = "cert-manager-disabled-skips-integration"
         spec = {
             compositionPath = "apis/dnsstacks/composition.yaml"
             xrdPath = "apis/dnsstacks/definition.yaml"
@@ -200,15 +201,17 @@ _items = [
                     aws = {
                         region = "us-east-1"
                     }
-                    externalDNS = {
-                        enabled = False
-                    }
                     certManager = {
                         enabled = False
                     }
                 }
             }
             assertResources = [
+                {
+                    apiVersion = "helm.m.crossplane.io/v1beta1"
+                    kind = "Release"
+                    metadata.name = "dns-edns"
+                }
                 {
                     apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                     kind = "DNSStack"
@@ -220,7 +223,94 @@ _items = [
     }
 
     # ==========================================================================
-    # Test 5: AWS config passes through to sub-resources
+    # Test 5: cert-manager integration composes a Usage referencing the
+    # external Release (default name "cert-manager", matching aws-cert-stack's
+    # spec.releaseName default).
+    # ==========================================================================
+    metav1alpha1.CompositionTest {
+        metadata.name = "integration-usage-references-external-release-by-default"
+        spec = {
+            compositionPath = "apis/dnsstacks/composition.yaml"
+            xrdPath = "apis/dnsstacks/definition.yaml"
+            timeoutSeconds = 60
+            validate = False
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "DNSStack"
+                metadata.name = "dns"
+                spec = {
+                    clusterName = "my-cluster"
+                    aws = {
+                        region = "us-east-1"
+                    }
+                    clusterIssuer = {
+                        email = "admin@example.com"
+                    }
+                }
+            }
+            assertResources = [
+                {
+                    apiVersion = "protection.crossplane.io/v1beta1"
+                    kind = "Usage"
+                    metadata.name = "dns-delete-cluster-issuer-before-cert-manager"
+                    spec = {
+                        of = {
+                            apiVersion = "helm.m.crossplane.io/v1beta1"
+                            kind = "Release"
+                            resourceRef.name = "cert-manager"
+                        }
+                        by = {
+                            apiVersion = "kubernetes.m.crossplane.io/v1alpha1"
+                            kind = "Object"
+                            resourceRef.name = "dns-cluster-issuer"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+
+    # ==========================================================================
+    # Test 5b: Override the external Release name via spec.certManager.name.
+    # ==========================================================================
+    metav1alpha1.CompositionTest {
+        metadata.name = "integration-usage-honors-cert-manager-name-override"
+        spec = {
+            compositionPath = "apis/dnsstacks/composition.yaml"
+            xrdPath = "apis/dnsstacks/definition.yaml"
+            timeoutSeconds = 60
+            validate = False
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "DNSStack"
+                metadata.name = "dns"
+                spec = {
+                    clusterName = "my-cluster"
+                    aws = {
+                        region = "us-east-1"
+                    }
+                    certManager = {
+                        name = "my-custom-cm-release"
+                    }
+                    clusterIssuer = {
+                        email = "admin@example.com"
+                    }
+                }
+            }
+            assertResources = [
+                {
+                    apiVersion = "protection.crossplane.io/v1beta1"
+                    kind = "Usage"
+                    metadata.name = "dns-delete-cluster-issuer-before-cert-manager"
+                    spec.of.resourceRef.name = "my-custom-cm-release"
+                }
+            ]
+        }
+    }
+
+    # ==========================================================================
+    # Test 6: AWS config passes through to both PodIdentities (ExternalDNS
+    # and cert-manager) — they share the same aws.* settings.
     # ==========================================================================
     metav1alpha1.CompositionTest {
         metadata.name = "aws-config-passthrough"
@@ -249,7 +339,7 @@ _items = [
                 {
                     apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                     kind = "PodIdentity"
-                    metadata.name = "dns-edns-pod-identity"
+                    metadata.name = "dns-edns"
                     spec = {
                         region = "us-west-2"
                         permissionsBoundaryArn = "arn:aws:iam::123456789012:policy/boundary"
@@ -259,7 +349,7 @@ _items = [
                 {
                     apiVersion = "aws.hops.ops.com.ai/v1alpha1"
                     kind = "PodIdentity"
-                    metadata.name = "dns-cm-pod-identity"
+                    metadata.name = "dns-cm"
                     spec = {
                         region = "us-west-2"
                         permissionsBoundaryArn = "arn:aws:iam::123456789012:policy/boundary"
@@ -269,8 +359,87 @@ _items = [
             ]
         }
     }
+
     # ==========================================================================
-    # Test 6: Domains create Route53 Zone resources
+    # Test 6b: cert-manager PodIdentity binds to the cert-manager SA in the
+    # configured namespace (defaults to "cert-manager").
+    # ==========================================================================
+    metav1alpha1.CompositionTest {
+        metadata.name = "cert-manager-pod-identity-binds-to-cert-manager-sa"
+        spec = {
+            compositionPath = "apis/dnsstacks/composition.yaml"
+            xrdPath = "apis/dnsstacks/definition.yaml"
+            timeoutSeconds = 60
+            validate = False
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "DNSStack"
+                metadata.name = "dns"
+                spec = {
+                    clusterName = "my-cluster"
+                    aws = {
+                        region = "us-east-1"
+                    }
+                    clusterIssuer = {
+                        email = "admin@example.com"
+                    }
+                }
+            }
+            assertResources = [
+                {
+                    apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                    kind = "PodIdentity"
+                    metadata.name = "dns-cm"
+                    spec.serviceAccount = {
+                        name = "cert-manager"
+                        namespace = "cert-manager"
+                    }
+                }
+            ]
+        }
+    }
+
+    # ==========================================================================
+    # Test 6c: certManager.namespace override flows to the PodIdentity SA
+    # binding (matches a non-default cert-stack namespace).
+    # ==========================================================================
+    metav1alpha1.CompositionTest {
+        metadata.name = "cert-manager-namespace-override-flows-to-pod-identity"
+        spec = {
+            compositionPath = "apis/dnsstacks/composition.yaml"
+            xrdPath = "apis/dnsstacks/definition.yaml"
+            timeoutSeconds = 60
+            validate = False
+            xr = {
+                apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                kind = "DNSStack"
+                metadata.name = "dns"
+                spec = {
+                    clusterName = "my-cluster"
+                    aws = {
+                        region = "us-east-1"
+                    }
+                    certManager = {
+                        namespace = "tls-system"
+                    }
+                    clusterIssuer = {
+                        email = "admin@example.com"
+                    }
+                }
+            }
+            assertResources = [
+                {
+                    apiVersion = "aws.hops.ops.com.ai/v1alpha1"
+                    kind = "PodIdentity"
+                    metadata.name = "dns-cm"
+                    spec.serviceAccount.namespace = "tls-system"
+                }
+            ]
+        }
+    }
+
+    # ==========================================================================
+    # Test 7: Domains create Route53 Zone resources
     # ==========================================================================
     metav1alpha1.CompositionTest {
         metadata.name = "domains-create-hosted-zones"
@@ -321,7 +490,7 @@ _items = [
     }
 
     # ==========================================================================
-    # Test 7: domainFilters auto-wired into ExternalDNS values
+    # Test 8: domainFilters auto-wired into ExternalDNS values
     # ==========================================================================
     metav1alpha1.CompositionTest {
         metadata.name = "domain-filters-auto-wired"
@@ -359,7 +528,7 @@ _items = [
     }
 
     # ==========================================================================
-    # Test 8: externalName annotation set when provided
+    # Test 9: externalName annotation set when provided
     # ==========================================================================
     metav1alpha1.CompositionTest {
         metadata.name = "external-name-annotation-set"

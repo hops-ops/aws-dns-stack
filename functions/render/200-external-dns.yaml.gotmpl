@@ -59,7 +59,7 @@ spec:
 apiVersion: aws.hops.ops.com.ai/v1alpha1
 kind: PodIdentity
 metadata:
-  name: {{ $state.name }}-edns-pod-identity
+  name: {{ $state.name }}-edns
   annotations:
     {{ setResourceNameAnnotation "edns-pod-identity" }}
   labels: {{ $state.labels | toJson }}
@@ -120,7 +120,7 @@ spec:
     apiVersion: aws.hops.ops.com.ai/v1alpha1
     kind: PodIdentity
     resourceRef:
-      name: {{ $state.name }}-edns-pod-identity
+      name: {{ $state.name }}-edns
   by:
     apiVersion: helm.m.crossplane.io/v1beta1
     kind: Release

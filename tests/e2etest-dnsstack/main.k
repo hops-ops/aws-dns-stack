@@ -1,15 +1,18 @@
 # e2etest-dnsstack - aws DNSStack E2E Test
 # =================================================
-# Tests deployment of the DNS stack (ExternalDNS, CertManager, ClusterIssuer)
+# Tests deployment of the DNS stack (ExternalDNS + Route53 hosted zones)
 # on an EKS cluster.
 #
 # This test creates:
 # 1. An AutoEKSCluster using subnet IDs from the persistent hops-test network
-# 2. A aws DNSStack that composes:
-#    - helm-aws-external-dns (ExternalDNS with Pod Identity)
-#    - helm-aws-cert-manager (CertManager with Pod Identity)
-#    - ClusterIssuer (Let's Encrypt DNS-01 via Route53)
+# 2. An aws DNSStack that composes:
+#    - helm-release-external-dns (ExternalDNS Helm release with Pod Identity)
 #    - Route53 hosted zones
+#
+# The cert-manager integration (ClusterIssuer + protection Usage) is NOT
+# exercised here — this stack does not install cert-manager. To test the
+# integration end-to-end, install aws-cert-stack first and set
+# certManager.enabled = True (default) on the DNSStack manifest below.
 #
 # Uses persistent network infrastructure from aws-network e2e test (hops-test)
 # to speed up test execution by avoiding network creation/deletion.
@@ -243,8 +246,11 @@ _items = [
                         domains = [
                             {name = _test_name + ".e2e.hops.ops.com.ai"}
                         ]
-                        clusterIssuer = {
-                            email = "e2e@hops.ops.com.ai"
+                        # cert-manager integration disabled — this e2e doesn't
+                        # install cert-manager. Pair with aws-cert-stack to
+                        # exercise the integration end-to-end.
+                        certManager = {
+                            enabled = False
                         }
                     }
                 }

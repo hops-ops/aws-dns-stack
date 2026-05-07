@@ -32,18 +32,6 @@
   {{- end }}
 {{- end }}
 
-# Check if cert-manager helm release is ready
-{{- $cmHelmObs := get $observed "helm-release-cert-manager" | default dict }}
-{{- $cmHelmResource := $cmHelmObs.resource | default dict }}
-{{- $cmHelmStatus := $cmHelmResource.status | default dict }}
-{{- $cmHelmConditions := $cmHelmStatus.conditions | default list }}
-{{- $cmHelmReady := false }}
-{{- range $cond := $cmHelmConditions }}
-  {{- if and (eq $cond.type "Ready") (eq $cond.status "True") }}
-    {{- $cmHelmReady = true }}
-  {{- end }}
-{{- end }}
-
 # Check if cert-manager pod-identity is ready
 {{- $cmPodIdObs := get $observed "cm-pod-identity" | default dict }}
 {{- $cmPodIdResource := $cmPodIdObs.resource | default dict }}
@@ -81,7 +69,6 @@
     "podIdentityReady" $ednsPodIdReady
   )
   "certManager" (dict
-    "helmReady" $cmHelmReady
     "podIdentityReady" $cmPodIdReady
   )
   "hostedZones" $hostedZones
