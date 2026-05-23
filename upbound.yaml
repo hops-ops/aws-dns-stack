@@ -23,7 +23,7 @@ spec:
   - apiVersion: pkg.crossplane.io/v1
     kind: Configuration
     package: ghcr.io/hops-ops/aws-pod-identity
-    version: '>=v0.10.1'
+    version: '>=v0.11.0'
   description: Deploys ExternalDNS + Route53 hosted zones and (optionally) the cert-manager
     integration — a Let's Encrypt DNS-01 ClusterIssuer wired to those zones plus a
     deletion-ordering Usage. cert-manager itself is NOT installed by this stack; pair
