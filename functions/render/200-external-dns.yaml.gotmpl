@@ -44,11 +44,13 @@ spec:
       # Required since external-dns 1.22 / app 0.22 (no default). upsert-only
       # avoids deleting records we no longer own.
       policy: upsert-only
-      # 1.22 dropped the alpha→GA annotation-prefix fallback. Keep alpha so
-      # existing cluster annotations (external-dns.alpha.kubernetes.io/*) are
-      # still recognized — otherwise ownership TXT mismatch can delete DNS.
-      # Product decision later: migrate workloads to GA prefix, then remove this.
-      annotationPrefix: external-dns.alpha.kubernetes.io/
+      # BREAKING CHANGE: drop the alpha pin from #23 and use the 1.22 GA
+      # default (`external-dns.kubernetes.io/`). Consumers MUST retarget
+      # annotations from `external-dns.alpha.kubernetes.io/*` to
+      # `external-dns.kubernetes.io/*` before or while upgrading this
+      # package major — otherwise ownership TXT mismatch leaves records
+      # unmanaged (or, if policy is ever relaxed, can delete DNS).
+      annotationPrefix: external-dns.kubernetes.io/
       registry: txt
       interval: 1m
       {{- if $ednsValues }}
